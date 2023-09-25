@@ -1,5 +1,6 @@
 module List.Shuffle
   ( shuffle,
+    shuffle_,
   )
 where
 
@@ -65,7 +66,7 @@ import System.Random qualified as Random
 -- > shuffleList list = do
 -- >   Env {prngRef} <- ask
 -- >   gen <- atomicModifyIORef' prngRef Random.split
--- >   pure (fst (List.shuffle list gen))
+-- >   pure (List.shuffle_ list gen)
 --
 -- === __Some IO monad in which the global generator is fine__
 --
@@ -78,7 +79,7 @@ import System.Random qualified as Random
 -- >
 -- > shuffleList :: MonadIO m => [a] -> m [a]
 -- > shuffleList list =
--- >   fst . List.shuffle list <$> Random.newStdGen
+-- >   List.shuffle_ list <$> Random.newStdGen
 shuffle :: (RandomGen g) => [a] -> g -> ([a], g)
 shuffle list gen0 =
   runST do
@@ -104,3 +105,9 @@ shuffle list gen0 =
   where
     len = length list
 {-# SPECIALIZE shuffle :: [a] -> Random.StdGen -> ([a], Random.StdGen) #-}
+
+-- | Like 'shuffle', but discards the final generator.
+shuffle_ :: (RandomGen g) => [a] -> g -> [a]
+shuffle_ list g =
+  fst (shuffle list g)
+{-# SPECIALIZE shuffle_ :: [a] -> Random.StdGen -> [a] #-}
