@@ -12,8 +12,13 @@ main = do
   _ <- evaluate (force list)
 
   defaultMain
-    [ bench "shuffle" (whnf shuffle (list, Random.mkStdGen 0))
+    [ bench "sample" (whnf (sample 10) (list, Random.mkStdGen 0)),
+      bench "shuffle" (whnf shuffle (list, Random.mkStdGen 0))
     ]
+
+sample :: Int -> ([Int], Random.StdGen) -> ()
+sample n (list, gen) =
+  deepseq (fst (List.sample n list gen)) ()
 
 shuffle :: ([Int], Random.StdGen) -> ()
 shuffle (list, gen) =

@@ -1,10 +1,12 @@
 module List.Shuffle
   ( shuffle,
     shuffle_,
+    sample,
   )
 where
 
 import Control.Monad.ST (runST)
+import Control.Monad.ST.Strict (ST)
 import Data.Foldable qualified as Foldable
 import Data.Primitive.Array qualified as Array
 import System.Random (RandomGen)
@@ -83,31 +85,71 @@ import System.Random qualified as Random
 shuffle :: (RandomGen g) => [a] -> g -> ([a], g)
 shuffle list gen0 =
   runST do
-    array <- Array.newArray len undefined
-    let writeElems !i = \case
-          [] -> pure ()
-          x : xs -> do
-            Array.writeArray array i x
-            writeElems (i + 1) xs
-    writeElems 0 list
-    let swapElems !i gen
-          | i >= len - 1 = pure gen
-          | otherwise = do
-              let (j, gen1) = Random.uniformR (i, len - 1) gen
-              xi <- Array.readArray array i
-              xj <- Array.readArray array j
-              Array.writeArray array i xj
-              Array.writeArray array j xi
-              swapElems (i + 1) gen1
-    gen1 <- swapElems 0 gen0
+    array <- listToMutableArray list
+    gen1 <- shuffleN (Array.sizeofMutableArray array - 1) array gen0
     array1 <- Array.unsafeFreezeArray array
     pure (Foldable.toList array1, gen1)
-  where
-    len = length list
 {-# SPECIALIZE shuffle :: [a] -> Random.StdGen -> ([a], Random.StdGen) #-}
+
+-- `shuffleN n array g` shuffles the first `n` elements of `array`, i.e. it performs the Fisher-Yates algorithm, but
+-- stopping after `n` elements, effectively leaving those `n` elements at the head of the array "shuffled" and the rest
+-- in some random indeterminate order.
+--
+-- Call `len` the length of the array minus 1. When `n` is the len, the whole array gets shuffled, as shuffling `n-1` of
+-- `n` elements is equivalent to shuffling all `n` elements.
+--
+-- It's fine to pass nonsense values for `n` - negative numbers are equivalent to 0, and numbers larger than `len` are
+-- equivalent to `len`.
+shuffleN :: (RandomGen g) => Int -> Array.MutableArray s a -> g -> ST s g
+shuffleN n0 array =
+  go 0
+  where
+    go !i gen0
+      | i >= n = pure gen0
+      | otherwise = do
+          let (j, gen1) = Random.uniformR (i, m) gen0
+          swapArray i j array
+          go (i + 1) gen1
+
+    n = min n0 m
+    m = Array.sizeofMutableArray array - 1
 
 -- | Like 'shuffle', but discards the final generator.
 shuffle_ :: (RandomGen g) => [a] -> g -> [a]
 shuffle_ list g =
   fst (shuffle list g)
 {-# SPECIALIZE shuffle_ :: [a] -> Random.StdGen -> [a] #-}
+
+-- | Sample (without replacement) @n@ elements of a list.
+--
+-- @sample n xs@ is equal to taking @n@ elements from the result of @shuffle n xs@, but can be noticeably more efficient
+-- if @n@ is sufficiently smaller than the length of @xs@. Always benchmark! :)
+sample :: (RandomGen g) => Int -> [a] -> g -> ([a], g)
+sample n list gen0 =
+  runST do
+    array <- listToMutableArray list
+    gen1 <- shuffleN n array gen0
+    array1 <- Array.unsafeFreezeArray array
+    pure (take n (Foldable.toList array1), gen1)
+
+-- Swap two elements in a mutable array.
+swapArray :: Int -> Int -> Array.MutableArray s a -> ST s ()
+swapArray i j array = do
+  xi <- Array.readArray array i
+  xj <- Array.readArray array j
+  Array.writeArray array i xj
+  Array.writeArray array j xi
+{-# INLINE swapArray #-}
+
+-- Construct a mutable array from a list.
+listToMutableArray :: [a] -> ST s (Array.MutableArray s a)
+listToMutableArray list = do
+  array <- Array.newArray (length list) undefined
+  let writeElems !i = \case
+        [] -> pure ()
+        x : xs -> do
+          Array.writeArray array i x
+          writeElems (i + 1) xs
+  writeElems 0 list
+  pure array
+{-# INLINE listToMutableArray #-}
