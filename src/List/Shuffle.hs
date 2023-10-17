@@ -111,7 +111,7 @@ shuffleN n0 array =
       | i >= n = pure gen0
       | otherwise = do
           let (j, gen1) = Random.uniformR (i, m) gen0
-          swapArray i j array
+          swapArrayElems i j array
           go (i + 1) gen1
 
     n = min n0 m
@@ -130,10 +130,10 @@ shuffleIO list =
   shuffle_ list <$> Random.newStdGen
 {-# SPECIALIZE shuffleIO :: [a] -> IO [a] #-}
 
--- | \(\mathcal{O}(c)\). Sample @c@ elements of a list, without replacement.
+-- | \(\mathcal{O}(n)\). Sample elements of a list, without replacement.
 --
--- @sample c xs@ is equivalent to taking @c@ elements from the result of @shuffle xs@, but its time complexity is
--- proportional to @c@, not the length of @xs@.
+-- @sample c xs@ is equivalent to taking @c@ elements from the result of @shuffle xs@, but with a constant factor that
+-- is proportional to @c@, not the length of @xs@.
 sample :: (RandomGen g) => Int -> [a] -> g -> ([a], g)
 sample n list gen0 =
   runST do
@@ -143,26 +143,26 @@ sample n list gen0 =
     pure (take n (Foldable.toList array1), gen1)
 {-# SPECIALIZE sample :: Int -> [a] -> Random.StdGen -> ([a], Random.StdGen) #-}
 
--- | \(\mathcal{O}(c)\). Like 'sample', but discards the final generator.
+-- | \(\mathcal{O}(n)\). Like 'sample', but discards the final generator.
 sample_ :: (RandomGen g) => Int -> [a] -> g -> [a]
 sample_ n list g =
   fst (sample n list g)
 {-# SPECIALIZE sample_ :: Int -> [a] -> Random.StdGen -> [a] #-}
 
--- | \(\mathcal{O}(c)\). Like 'sample', but uses the global random number generator.
+-- | \(\mathcal{O}(n)\). Like 'sample', but uses the global random number generator.
 sampleIO :: (MonadIO m) => Int -> [a] -> m [a]
 sampleIO n list =
   sample_ n list <$> Random.newStdGen
 {-# SPECIALIZE sampleIO :: Int -> [a] -> IO [a] #-}
 
 -- Swap two elements in a mutable array.
-swapArray :: Int -> Int -> Array.MutableArray s a -> ST s ()
-swapArray i j array = do
-  xi <- Array.readArray array i
-  xj <- Array.readArray array j
-  Array.writeArray array i xj
-  Array.writeArray array j xi
-{-# INLINE swapArray #-}
+swapArrayElems :: Int -> Int -> Array.MutableArray s a -> ST s ()
+swapArrayElems i j array = do
+  x <- Array.readArray array i
+  y <- Array.readArray array j
+  Array.writeArray array i y
+  Array.writeArray array j x
+{-# INLINE swapArrayElems #-}
 
 -- Construct a mutable array from a list.
 listToMutableArray :: [a] -> ST s (Array.MutableArray s a)
