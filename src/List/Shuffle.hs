@@ -1,10 +1,26 @@
+-- | List shuffling with optimal asymptotic time and space complexity using the imperative Fisher–Yates algorithm.
 module List.Shuffle
-  ( shuffle,
+  ( -- * Shuffling
+    shuffle,
     shuffle_,
+    shuffleIO,
+
+    -- * Sampling
     sample,
+    sample_,
+    sampleIO,
+
+    -- * Adapting to other monads
+
+    -- ** Reader monad
+    -- $example-reader
+
+    -- ** State monad
+    -- $example-state
   )
 where
 
+import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.ST (runST)
 import Control.Monad.ST.Strict (ST)
 import Data.Foldable qualified as Foldable
@@ -12,11 +28,36 @@ import Data.Primitive.Array qualified as Array
 import System.Random (RandomGen)
 import System.Random qualified as Random
 
--- | Shuffle a list.
+-- $example-reader
 --
--- This function can be adapted to work in a couple common situations:
+-- You are working in a reader monad, with access to a pseudo-random number generator somewhere in the environment,
+-- in a mutable cell like an @IORef@ or @TVar@:
 --
--- === __A state monad__
+-- > import System.Random qualified as Random
+-- > import System.Random.Stateful qualified as Random
+-- >
+-- > data MyMonad a
+-- >
+-- > instance MonadIO MyMonad
+-- > instance MonadReader MyEnv MyMonad
+-- >
+-- > data MyEnv = MyEnv
+-- >   { ...
+-- >   , prng :: Random.AtomicGenM Random.StdGen
+-- >   , ...
+-- >   }
+--
+-- In this case, you can adapt 'shuffle' to work in your monad as follows:
+--
+-- > import List.Shuffle qualified as List
+-- > import System.Random qualified as Random
+-- >
+-- > shuffleList :: [a] -> MyMonad [a]
+-- > shuffleList list = do
+-- >   MyEnv {prng} <- ask
+-- >   Random.applyAtomicGen (List.shuffle list) prng
+
+-- $example-state
 --
 -- You are working in a state monad with access to a pseudo-random number generator somewhere in the state type. You
 -- also have a lens onto this field, which is commonly either provided by @generic-lens@/@optics@ or written manually:
@@ -40,48 +81,8 @@ import System.Random qualified as Random
 -- > shuffleList :: Monad m => [a] -> StateT MyState m [a]
 -- > shuffleList =
 -- >   Lens.zoom prngLens . State.state . List.shuffle
---
--- === __A reader monad__
---
--- You are working in a reader monad, with access to a pseudo-random number generator somewhere in the environment,
--- in a mutable cell like an @IORef@ or @TVar@:
---
--- > import System.Random qualified as Random
--- >
--- > data MyMonad a
--- >
--- > instance MonadReader MyEnv MyMonad
--- >
--- > data MyEnv = MyEnv
--- >   { ...
--- >   , prngRef :: IORef Random.StdGen
--- >   , ...
--- >   }
---
--- In this case, you can adapt 'shuffle' to work in your monad as follows:
---
--- > import Data.IORef
--- > import List.Shuffle qualified as List
--- > import System.Random qualified as Random
--- >
--- > shuffleList :: [a] -> MyMonad [a]
--- > shuffleList list = do
--- >   Env {prngRef} <- ask
--- >   gen <- atomicModifyIORef' prngRef Random.split
--- >   pure (List.shuffle_ list gen)
---
--- === __Some IO monad in which the global generator is fine__
---
--- You are working in some IO monad, and you just want to get shuffling as quickly as possible.
---
--- In this case, you can adapt 'shuffle' to work in your monad as follows:
---
--- > import List.Shuffle qualified as List
--- > import System.Random qualified as Random
--- >
--- > shuffleList :: MonadIO m => [a] -> m [a]
--- > shuffleList list =
--- >   List.shuffle_ list <$> Random.newStdGen
+
+-- | \(\mathcal{O}(n)\). Shuffle a list.
 shuffle :: (RandomGen g) => [a] -> g -> ([a], g)
 shuffle list gen0 =
   runST do
@@ -113,17 +114,24 @@ shuffleN n0 array =
 
     n = min n0 m
     m = Array.sizeofMutableArray array - 1
+{-# SPECIALIZE shuffleN :: Int -> Array.MutableArray s a -> Random.StdGen -> ST s Random.StdGen #-}
 
--- | Like 'shuffle', but discards the final generator.
+-- | \(\mathcal{O}(n)\). Like 'shuffle', but discards the final generator.
 shuffle_ :: (RandomGen g) => [a] -> g -> [a]
 shuffle_ list g =
   fst (shuffle list g)
 {-# SPECIALIZE shuffle_ :: [a] -> Random.StdGen -> [a] #-}
 
--- | Sample (without replacement) @n@ elements of a list.
+-- | \(\mathcal{O}(n)\). Like 'shuffle', but uses the global random number generator.
+shuffleIO :: (MonadIO m) => [a] -> m [a]
+shuffleIO list =
+  shuffle_ list <$> Random.newStdGen
+{-# SPECIALIZE shuffleIO :: [a] -> IO [a] #-}
+
+-- | \(\mathcal{O}(c)\). Sample @c@ elements of a list, without replacement.
 --
--- @sample n xs@ is equal to taking @n@ elements from the result of @shuffle n xs@, but can be noticeably more efficient
--- if @n@ is sufficiently smaller than the length of @xs@. Always benchmark! :)
+-- @sample c xs@ is equivalent to taking @c@ elements from the result of @shuffle xs@, but its time complexity is
+-- proportional to @c@, not the length of @xs@.
 sample :: (RandomGen g) => Int -> [a] -> g -> ([a], g)
 sample n list gen0 =
   runST do
@@ -131,6 +139,19 @@ sample n list gen0 =
     gen1 <- shuffleN n array gen0
     array1 <- Array.unsafeFreezeArray array
     pure (take n (Foldable.toList array1), gen1)
+{-# SPECIALIZE sample :: Int -> [a] -> Random.StdGen -> ([a], Random.StdGen) #-}
+
+-- | \(\mathcal{O}(c)\). Like 'sample', but discards the final generator.
+sample_ :: (RandomGen g) => Int -> [a] -> g -> [a]
+sample_ n list g =
+  fst (sample n list g)
+{-# SPECIALIZE sample_ :: Int -> [a] -> Random.StdGen -> [a] #-}
+
+-- | \(\mathcal{O}(c)\). Like 'sample', but uses the global random number generator.
+sampleIO :: (MonadIO m) => Int -> [a] -> m [a]
+sampleIO n list =
+  sample_ n list <$> Random.newStdGen
+{-# SPECIALIZE sampleIO :: Int -> [a] -> IO [a] #-}
 
 -- Swap two elements in a mutable array.
 swapArray :: Int -> Int -> Array.MutableArray s a -> ST s ()
