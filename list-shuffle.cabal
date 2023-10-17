@@ -11,7 +11,7 @@ license-file: LICENSE
 maintainer: Mitchell Rosen <mitchellwrosen@gmail.com>, Travis Staton <hello@travisstaton.com>
 name: list-shuffle
 stability: stable
-synopsis: List shuffling and sampling with optimal asymptotic time and space complexity using the imperative Fisher–Yates algorithm
+synopsis: List shuffling and sampling
 tested-with: GHC == 9.4.7, GHC == 9.6.3, GHC == 9.8.1
 version: 1.0.0
 
