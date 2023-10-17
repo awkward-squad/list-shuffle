@@ -1,4 +1,5 @@
--- | List shuffling with optimal asymptotic time and space complexity using the imperative Fisher–Yates algorithm.
+-- | List shuffling and sampling with optimal asymptotic time and space complexity using the imperative Fisher–Yates
+-- algorithm.
 module List.Shuffle
   ( -- * Shuffling
     shuffle,
@@ -101,10 +102,11 @@ shuffle list gen0 =
 --
 -- It's fine to pass nonsense values for `n` - negative numbers are equivalent to 0, and numbers larger than `len` are
 -- equivalent to `len`.
-shuffleN :: (RandomGen g) => Int -> Array.MutableArray s a -> g -> ST s g
+shuffleN :: forall a g s. (RandomGen g) => Int -> Array.MutableArray s a -> g -> ST s g
 shuffleN n0 array =
   go 0
   where
+    go :: Int -> g -> ST s g
     go !i gen0
       | i >= n = pure gen0
       | otherwise = do

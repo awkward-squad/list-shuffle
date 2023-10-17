@@ -1,7 +1,6 @@
 module Main (main) where
 
 import Data.List qualified as List
-import Data.Ord (clamp)
 import Data.Word
 import Hedgehog
 import Hedgehog.Gen qualified as Gen
@@ -27,7 +26,7 @@ tests =
         list <- generateList
         gen <- generateGen
         n <- forAll (Gen.int (Range.linearFrom 0 (-30) (30)))
-        length (List.sample_ n list gen) === clamp (0, length list) n
+        length (List.sample_ n list gen) === (min (length list) . max 0) n
     ),
     ( "sample returns a subset of list elements",
       do
