@@ -2,28 +2,45 @@ cabal-version: 2.4
 name: list-shuffle
 version: 0
 
+common component
+  default-extensions:
+    BlockArguments
+    LambdaCase
+    OverloadedStrings
+    PatternSynonyms
+  default-language: GHC2021
+  ghc-options: -Wall
+
 library
+  import: component
   build-depends:
     base,
     primitive,
     random,
-  default-extensions:
-    BlockArguments
-    LambdaCase
-    PatternSynonyms
-  default-language: GHC2021
   hs-source-dirs: src
-  ghc-options: -Wall
   exposed-modules: List.Shuffle
 
+test-suite test
+  import: component
+  build-depends:
+    base,
+    containers,
+    hedgehog ^>= 1.4,
+    list-shuffle,
+    random,
+  ghc-options: -rtsopts -threaded "-with-rtsopts=-N4"
+  hs-source-dirs: test
+  main-is: Main.hs
+  type: exitcode-stdio-1.0
+
 benchmark bench
+  import: component
   build-depends:
     base,
     deepseq,
     list-shuffle,
     random,
     tasty-bench,
-  default-language: GHC2021
   ghc-options: -O "-with-rtsopts=-A32m -T"
   hs-source-dirs: bench
   main-is: Main.hs

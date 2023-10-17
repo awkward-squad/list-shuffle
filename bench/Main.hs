@@ -1,10 +1,10 @@
 module Main (main) where
 
-import Control.DeepSeq (deepseq, force)
+import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 import List.Shuffle qualified as List
 import System.Random qualified as Random
-import Test.Tasty.Bench (bench, defaultMain, nf, whnf)
+import Test.Tasty.Bench (bench, defaultMain, whnf)
 
 main :: IO ()
 main = do
