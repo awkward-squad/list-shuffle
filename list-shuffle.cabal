@@ -78,7 +78,7 @@ benchmark bench
   import: component
   build-depends:
     base,
-    deepseq ^>= 1.5.0,
+    deepseq ^>= 1.4.6 || ^>= 1.5.0,
     list-shuffle,
     random,
     tasty-bench ^>= 0.3.5,
