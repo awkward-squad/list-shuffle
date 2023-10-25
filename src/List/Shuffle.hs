@@ -132,8 +132,8 @@ shuffleIO list =
 
 -- | \(\mathcal{O}(n)\). Sample elements of a list, without replacement.
 --
--- @sample c xs@ is equivalent to taking @c@ elements from the result of @shuffle xs@, but with a constant factor that
--- is proportional to @c@, not the length of @xs@.
+-- @sample_ c xs@ is equivalent to @take c . shuffle_ xs@, but with a constant factor that is proportional to @c@, not
+-- the length of @xs@.
 sample :: (RandomGen g) => Int -> [a] -> g -> ([a], g)
 sample n list gen0 =
   runST do

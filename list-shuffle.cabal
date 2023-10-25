@@ -15,7 +15,7 @@ synopsis: List shuffling and sampling
 tested-with: GHC == 9.4.7, GHC == 9.6.3, GHC == 9.8.1
 version: 1.0.0
 
-extra-source-files:
+extra-doc-files:
   CHANGELOG.md
   README.md
 
@@ -82,7 +82,7 @@ benchmark bench
     list-shuffle,
     random,
     tasty-bench ^>= 0.3.5,
-  ghc-options: -O "-with-rtsopts=-A32m -T"
+  ghc-options: "-with-rtsopts=-A32m -T"
   hs-source-dirs: bench
   main-is: Main.hs
   type: exitcode-stdio-1.0
