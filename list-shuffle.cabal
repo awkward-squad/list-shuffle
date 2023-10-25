@@ -29,6 +29,7 @@ common component
     BlockArguments
     ImportQualifiedPost
     LambdaCase
+    NumericUnderscores
     OverloadedStrings
     PatternSynonyms
     RankNTypes
