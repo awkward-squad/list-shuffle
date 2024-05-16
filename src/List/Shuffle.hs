@@ -165,10 +165,11 @@ swapArrayElems i j array = do
 {-# INLINE swapArrayElems #-}
 
 -- Construct a mutable array from a list.
-listToMutableArray :: [a] -> ST s (Array.MutableArray s a)
+listToMutableArray :: forall a s. [a] -> ST s (Array.MutableArray s a)
 listToMutableArray list = do
   array <- Array.newArray (length list) undefined
-  let writeElems !i = \case
+  let writeElems :: Int -> [a] -> ST s ()
+      writeElems !i = \case
         [] -> pure ()
         x : xs -> do
           Array.writeArray array i x
